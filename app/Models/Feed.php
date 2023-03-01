@@ -16,6 +16,7 @@ class Feed extends Model
     
     protected $fillable = [
         'news_id',
+        'published_data_time',
         'title',
         'abstract',
         'url',

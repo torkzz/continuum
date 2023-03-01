@@ -22,6 +22,7 @@ class GetFeedArticles extends Command
      * @var string
      */
     protected $description = 'Command description';
+    
 
     /**
      * Execute the console command.
@@ -29,19 +30,34 @@ class GetFeedArticles extends Command
     public function handle(): void
     {
 
-        $params = "User=m-0FBF3BAF203067F422B5290021E966C2&";
-        $params .= "activityId=CB237342-8604-4713-88C2-231EB2D3161C&";
-        $params .= "apikey=0QfOX3Vn51YCzitbLaRkTTBadtWpgTN8NZLW0C1SEM&";
-        $params .= "audienceMode=adult&";
-        $params .= "cm=en-ph&";
-        $params .= "contentType=article&";
-        $params .= "duotone=true&";
-        $params .= "edgExpMask=512&";
-        $params .= "timeOut=1000&";
-        $params .= "wposchema=byregion";
-        $url = "https://assets.msn.com/service/news/feed/pages/ntp?".$params;
+        // https://assets.msn.com/service/news/feed/pages/ntp?User=m-250D9A45017B6630111C888200E667D0&activityId=1226ADF6-6FEA-4E6A-8353-82C8FA5874C9&apikey=0QfOX3Vn51YCzitbLaRkTTBadtWpgTN8NZLW0C1SEM&audienceMode=adult&cm=en-ph&contentType=article,video,slideshow,webcontent&duotone=true&edgExpMask=512&infopaneCount=17&memory=8&newsSkip=0&newsTop=48&ocid=anaheim-ntp-feeds&timeOut=1000&wposchema=byregion
+        $response = $this->msnCall("https://assets.msn.com/service/news/feed/pages/ntp?User=m-250D9A45017B6630111C888200E667D0&activityId=1226ADF6-6FEA-4E6A-8353-82C8FA5874C9&apikey=0QfOX3Vn51YCzitbLaRkTTBadtWpgTN8NZLW0C1SEM&audienceMode=adult&cm=en-ph&contentType=article,video,slideshow,webcontent&duotone=true&edgExpMask=512&infopaneCount=17&memory=8&newsSkip=0&newsTop=48&ocid=anaheim-ntp-feeds&timeOut=1000&wposchema=byregion");
+        
+        $this->readJson($response);
 
+        $nextPage = json_decode($response)->nextPageUrl;
+        $count = 1;
 
+        while ($nextPage) {
+            try {
+                $response2 = $this->msnCall($nextPage);
+                $nextPageResult = json_decode($response2);
+                $this->readJson($response2);
+                $nextPage = $nextPageResult->nextPageUrl;
+                $count++;
+                sleep( 1* 60);
+            } catch (\Throwable $th) {
+                echo $count;
+                echo PHP_EOL;
+                echo "error no next url";
+                echo PHP_EOL;
+                echo PHP_EOL;
+
+            }
+        }
+    }
+
+    private function readJson($response){
         $sections = json_decode($response)->sections;
         foreach ($sections as $section) {
             foreach ($section->subSections as $subSection) {
@@ -62,7 +78,7 @@ class GetFeedArticles extends Command
         }
     }
 
-    private function msnCall(){
+    private function msnCall($url){
         $opt = array(
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
@@ -81,7 +97,7 @@ class GetFeedArticles extends Command
             ),
         );
 
-        $response = $this->nativeCurl($opt);
+        return $this->nativeCurl($opt);
     }
 
     private function saveCard($card){
@@ -102,16 +118,23 @@ class GetFeedArticles extends Command
             $feed->news_id = $card->id;
             $feed->title = $card->title;
             $feed->abstract = $card->abstract;
+            $feed->published_data_time = $card->publishedDateTime;
             $feed->url = $card->url;
             
-            if (optional($card->images[0])->url) {
-                echo $card->images[0]->url;
-                echo PHP_EOL;
-                $feed->image = $card->images[0]->url;
+            if(isset($card->images)){
+                if (optional($card->images[0])->url) {
+                    echo $card->images[0]->url;
+                    echo PHP_EOL;
+                    $feed->image = $card->images[0]->url;
+                }
             }
-            
             $feed->save();
-
+        }else{
+            $isExisting->published_data_time = $card->publishedDateTime;
+            $isExisting->save();
+            echo "updated ".$card->id;
+            echo PHP_EOL;
+            echo PHP_EOL;
         }
     }
 }

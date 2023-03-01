@@ -17,8 +17,9 @@ return new class extends Migration
             $table->text('title');
             $table->text('abstract');
             $table->text('url');
-            $table->text('image');
+            $table->text('image')->default(null);
             $table->tinyInteger('is_send')->default('0');
+            $table->string('publishedDateTime',50);
             $table->timestamps();
             $table->unique(array('news_id'));
         });

@@ -16,7 +16,5 @@ trait NativeCurlTrait
         curl_close($curl);
         
         return $this->response;
-
-
     }
 }
