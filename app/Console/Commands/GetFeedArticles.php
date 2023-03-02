@@ -5,10 +5,12 @@ namespace App\Console\Commands;
 use App\Models\Feed;
 use Illuminate\Console\Command;
 use App\Traits\NativeCurlTrait;
+use App\Traits\TelegramTrait;
 
 class GetFeedArticles extends Command
 {
     use NativeCurlTrait;
+    use TelegramTrait;
     /**
      * The name and signature of the console command.
      *
@@ -45,14 +47,14 @@ class GetFeedArticles extends Command
                 $this->readJson($response2);
                 $nextPage = $nextPageResult->nextPageUrl;
                 $count++;
-                sleep( 1* 60);
+                sleep( 1* 3);
             } catch (\Throwable $th) {
                 echo $count;
                 echo PHP_EOL;
                 echo "error no next url";
                 echo PHP_EOL;
                 echo PHP_EOL;
-
+                exit;
             }
         }
     }
@@ -106,11 +108,6 @@ class GetFeedArticles extends Command
             echo "----".$card->id;
             echo PHP_EOL;
             echo $card->title;
-            // echo PHP_EOL;
-            // echo $card->abstract;
-            // echo PHP_EOL;
-            // echo $card->url;
-            // echo PHP_EOL;
             echo PHP_EOL;
             echo PHP_EOL;
 
@@ -118,7 +115,8 @@ class GetFeedArticles extends Command
             $feed->news_id = $card->id;
             $feed->title = $card->title;
             $feed->abstract = $card->abstract;
-            $feed->published_data_time = $card->publishedDateTime;
+            $publishedDateTime = \Carbon\Carbon::createFromFormat( 'Y-m-d\TH:i:sZ', $card->publishedDateTime, 'UTC' )->setTimezone('Asia/Manila')->format('Y-m-d H:i:s');
+            $feed->published_data_time = $publishedDateTime;
             $feed->url = $card->url;
             
             if(isset($card->images)){
@@ -126,11 +124,14 @@ class GetFeedArticles extends Command
                     echo $card->images[0]->url;
                     echo PHP_EOL;
                     $feed->image = $card->images[0]->url;
+                    $this->sendPhotoMessage("327943312", $card->title." --- ".$card->abstract."  ".$card->url, $card->images[0]->url);
                 }
             }
             $feed->save();
         }else{
-            $isExisting->published_data_time = $card->publishedDateTime;
+            $publishedDateTime = \Carbon\Carbon::createFromFormat( 'Y-m-d\TH:i:sZ', $card->publishedDateTime, 'UTC' )->setTimezone('Asia/Manila')->format('Y-m-d H:i:s');
+            $isExisting->published_data_time = $publishedDateTime;
+
             $isExisting->save();
             echo "updated ".$card->id;
             echo PHP_EOL;
